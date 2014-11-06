@@ -88,7 +88,6 @@ public class WriterRecordBatch extends AbstractRecordBatch<Writer> {
   @Override
   public IterOutcome innerNext() {
     if(processed) {
-      cleanup();
       // if the upstream record batch is already processed and next() is called by
       // downstream then return NONE to indicate completion
       return IterOutcome.NONE;
