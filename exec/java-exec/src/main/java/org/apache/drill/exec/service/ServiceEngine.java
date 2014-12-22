@@ -46,7 +46,6 @@ public class ServiceEngine implements Closeable{
   private final Controller controller;
   private final DataConnectionCreator dataPool;
   private final DrillConfig config;
-  boolean useIP = false;
   private final boolean allowPortHunting;
 
   public ServiceEngine(ControlMessageHandler controlMessageHandler, UserWorker userWorker, BootStrapContext context, WorkEventBus workBus, DataResponseHandler dataHandler, boolean allowPortHunting){
@@ -59,15 +58,27 @@ public class ServiceEngine implements Closeable{
 
   public DrillbitEndpoint start() throws DrillbitStartupException, InterruptedException, UnknownHostException{
     int userPort = userServer.bind(config.getInt(ExecConstants.INITIAL_USER_PORT), allowPortHunting);
-    String address = useIP ?  InetAddress.getLocalHost().getHostAddress() : InetAddress.getLocalHost().getCanonicalHostName();
     DrillbitEndpoint partialEndpoint = DrillbitEndpoint.newBuilder()
-        .setAddress(address)
-        //.setAddress("localhost")
+        .setAddress(getHostname())
         .setUserPort(userPort)
         .build();
 
     partialEndpoint = controller.start(partialEndpoint);
     return dataPool.start(partialEndpoint);
+  }
+
+  private String getHostname() {
+    String hostname = "localhost"; // default if we can't find one
+    try {
+      final InetAddress inetAddress = InetAddress.getLocalHost();
+      if (inetAddress != null) {
+        hostname = inetAddress.getCanonicalHostName();
+      }
+    } catch(UnknownHostException e) {
+      // do nothing
+    }
+
+    return hostname;
   }
 
   public DataConnectionCreator getDataConnectionCreator(){
