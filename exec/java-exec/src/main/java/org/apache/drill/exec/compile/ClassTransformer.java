@@ -49,6 +49,7 @@ public class ClassTransformer {
       "org.apache.drill.exec.compile.ClassTransformer.scalar_replacement";
   public final static EnumeratedStringValidator SCALAR_REPLACEMENT_VALIDATOR = new EnumeratedStringValidator(
       SCALAR_REPLACEMENT_OPTION, "try", "off", "try", "on");
+  private final static int MAX_SCALAR_REPLACE_CODE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 
   @VisibleForTesting // although we need it even if it weren't used in testing
   public enum ScalarReplacementOption {
@@ -257,7 +258,8 @@ public class ClassTransformer {
          *  we're using TRY.
          */
         MergedClassResult result = null;
-        boolean scalarReplace = scalarReplacementOption != ScalarReplacementOption.OFF;
+        boolean scalarReplace = (scalarReplacementOption != ScalarReplacementOption.OFF) &&
+            (entireClass.length() < MAX_SCALAR_REPLACE_CODE_SIZE_BYTES);
         while(true) {
           try {
             result = MergeAdapter.getMergedClass(nextSet, precompiledBytes, generatedNode, scalarReplace);
