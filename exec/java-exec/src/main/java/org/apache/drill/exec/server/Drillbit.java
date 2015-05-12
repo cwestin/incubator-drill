@@ -17,7 +17,10 @@
  */
 package org.apache.drill.exec.server;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javassist.Modifier;
 
 import org.apache.drill.common.AutoCloseables;
 import org.apache.drill.common.StackTrace;
@@ -50,6 +53,8 @@ import org.glassfish.jersey.servlet.ServletContainer;
 import com.codahale.metrics.servlets.MetricsServlet;
 import com.codahale.metrics.servlets.ThreadDumpServlet;
 import com.google.common.io.Closeables;
+import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigValue;
 
 /**
  * Starts, tracks and stops all the required services for a Drillbit daemon to work.
@@ -235,6 +240,7 @@ public class Drillbit implements AutoCloseable {
 
   public void run() throws Exception {
     final long startTime = System.currentTimeMillis();
+    ExecConstants.logValues(context.getConfig());
     logger.debug("Startup begun.");
     coord.start(10000);
     storeProvider.start();

@@ -17,6 +17,11 @@
  */
 package org.apache.drill.exec;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+
+import org.apache.drill.common.config.DrillConfig;
+
 import org.apache.drill.exec.physical.impl.common.HashTable;
 import org.apache.drill.exec.server.options.OptionValidator;
 import org.apache.drill.exec.server.options.TypeValidators.BooleanValidator;
@@ -30,7 +35,18 @@ import org.apache.drill.exec.server.options.TypeValidators.RangeDoubleValidator;
 import org.apache.drill.exec.server.options.TypeValidators.StringValidator;
 import org.apache.drill.exec.testing.ExecutionControls;
 
-public interface ExecConstants {
+import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigValue;
+
+public class ExecConstants {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecConstants.class);
+
+  /**
+   * Prevent instantiation of this class of static constants.
+   */
+  private ExecConstants() {
+  }
+
   public static final String ZK_RETRY_TIMES = "drill.exec.zk.retry.count";
   public static final String ZK_RETRY_DELAY = "drill.exec.zk.retry.delay";
   public static final String ZK_CONNECTION = "drill.exec.zk.connect";
@@ -237,4 +253,39 @@ public interface ExecConstants {
 
   public static final String USE_OLD_ASSIGNMENT_CREATOR = "exec.schedule.assignment.old";
   public static final OptionValidator USE_OLD_ASSIGNMENT_CREATOR_VALIDATOR = new BooleanValidator(USE_OLD_ASSIGNMENT_CREATOR, false);
+
+  public static void logValues(final DrillConfig drillConfig) {
+    final StringBuilder stringBuilder = new StringBuilder("startup parameters\n");
+    final Field fields[] = ExecConstants.class.getFields();
+    for(final Field field : fields) {
+      // Skip over anything that's not a public static final string
+      if (field.getType() != String.class) {
+        continue;
+      }
+      final int modifiers = field.getModifiers();
+      if (!Modifier.isPublic(modifiers) || !Modifier.isStatic(modifiers) || !Modifier.isFinal(modifiers)) {
+        continue;
+      }
+
+      final String propertyName;
+      try {
+        propertyName = (String) field.get(null);
+      } catch(final IllegalAccessException e) {
+        logger.warn("could not access field \"" + field.getName() +"\":\n" + e);
+        continue;
+      }
+
+      final ConfigValue configValue;
+      try {
+        configValue = drillConfig.getValue(propertyName);
+      } catch(final ConfigException e) {
+        logger.debug("no configuration for property \"" + propertyName + "\"");
+        continue;
+      }
+
+      stringBuilder.append(String.format("%s == %s\n", propertyName, configValue.toString()));
+    }
+
+    logger.info(stringBuilder.toString());
+  }
 }
