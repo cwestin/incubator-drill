@@ -248,6 +248,7 @@ public class MergeJoinBatch extends AbstractRecordBatch<MergeJoinPOP> {
   }
 
   public void resetBatchBuilder() {
+    batchBuilder.close();
     batchBuilder = new MergeJoinBatchBuilder(oContext.getAllocator(), status);
   }
 

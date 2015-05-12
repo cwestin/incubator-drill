@@ -732,6 +732,8 @@ public class MergingRecordBatch extends AbstractRecordBatch<MergingReceiverPOP> 
         f.cleanup();
       }
     }
+
+    super.close();
   }
 
 }
