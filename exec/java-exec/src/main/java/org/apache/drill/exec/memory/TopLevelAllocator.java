@@ -209,11 +209,19 @@ public class TopLevelAllocator implements BufferAllocator {
 
     @Override
     public boolean takeOwnership(DrillBuf buf) {
+      if (closed) {
+        throw new IllegalStateException("receiving allocator is closed");
+      }
+
       return buf.transferAccounting(childAcct);
     }
 
     @Override
     public boolean takeOwnership(DrillBuf buf, Pointer<DrillBuf> out) {
+      if (closed) {
+        throw new IllegalStateException("sharing allocator is closed");
+      }
+
       DrillBuf b = new DrillBuf(this, acct, buf);
       out.value = b;
       return acct.transferIn(b, b.capacity());
