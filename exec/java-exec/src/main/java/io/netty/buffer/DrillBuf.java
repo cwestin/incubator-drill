@@ -114,7 +114,8 @@ public final class DrillBuf extends AbstractByteBuf implements AutoCloseable {
 
     if (DEBUG) {
       recordHistory("DrillBuf(BufferLedger, BufferAllocator["
-          + bufferAllocator.getId() + "], UnsafeDirectLittleEndian("
+          + bufferAllocator.getId() + "], UnsafeDirectLittleEndian[identityHashCode == "
+          + System.identityHashCode(byteBuf) + "]("
           + byteBuf.toString() + "))"
           + " => rootRefCnt identityHashCode == " + System.identityHashCode(rootRefCnt));
     }
@@ -278,8 +279,9 @@ public final class DrillBuf extends AbstractByteBuf implements AutoCloseable {
 
     if (DEBUG) {
       recordHistory("DrillBuf(BufferAllocator["
-          + allocator.getId() + "], Accountor, BufferLedger, ByteBuf("
-          + replacement.toString() + "), DrillBuf, index = " + index
+          + allocator.getId() + "], Accountor, BufferLedger, ByteBuf[identityHasCode == "
+          + System.identityHashCode(replacement) + "]("
+          + replacement.toString() + "), DrillBuf[" + buffer.id + "], index = " + index
           + ", length = " + length + ", flags = " + String.format("0x%08x", flags) + ")"
           + " => rootRefCnt identityHashCode == " + System.identityHashCode(rootRefCnt));
     }
@@ -1125,5 +1127,9 @@ public final class DrillBuf extends AbstractByteBuf implements AutoCloseable {
       sb.append('\n');
     }
     logger.trace(sb.toString());
+  }
+
+  public int getId() {
+    return id;
   }
 }

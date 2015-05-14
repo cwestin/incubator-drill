@@ -604,6 +604,9 @@ public abstract class BaseAllocator implements BufferAllocator {
       sharedLedger.addMapping(newBuf, baseAllocator);
 
       if (DEBUG) {
+        logger.debug(String.format("InnerBufferLedger.shareWith(..., otherAllocator[%d], drillBuf[%d], ...) at \n%s",
+            baseAllocator.id, drillBuf.getId(), new StackTrace())); // TODO(cwestin)
+
         final BaseAllocator drillBufAllocator = (BaseAllocator) drillBuf.getAllocator();
         if (BaseAllocator.this != drillBufAllocator) {
           throw new IllegalStateException("DrillBuf's allocator(["
@@ -680,6 +683,9 @@ public abstract class BaseAllocator implements BufferAllocator {
       // Remove from the old allocator.
       final BaseAllocator oldAllocator = (BaseAllocator) drillBuf.getAllocator();
       oldAllocator.releaseBuffer(drillBuf);
+
+      logger.debug(String.format("SharedBufferLedger.transferTo(otherAllocator[%d], ..., drillBuf[%d]) at\n%s",
+          newAllocator.id, drillBuf.getId(), new StackTrace())); // TODO(cwestin)
 
       return newAllocator.allocated < newAllocator.maxAllocation;
     }
@@ -803,6 +809,8 @@ public abstract class BaseAllocator implements BufferAllocator {
        * Create the new wrapper.
        */
       final DrillBuf newBuf = new DrillBuf(this, otherAllocator, drillBuf, index, length, drillBufFlags);
+      logger.debug(String.format("SharedBufferLedger.shareWith(..., otherAllocator[%d], drillBuf[%d], ...) at \n%s",
+          baseAllocator.id, drillBuf.getId(), new StackTrace())); // TODO(cwestin)
       addMapping(newBuf, baseAllocator);
       pDrillBuf.value = newBuf;
       return this;
@@ -916,6 +924,8 @@ public abstract class BaseAllocator implements BufferAllocator {
 
       if (DEBUG) {
         childAllocators.put(childAllocator, childAllocator);
+        logger.debug(String.format("allocator[%d] created new child allocator[%d] at\n%s",
+            id, childAllocator.id, new StackTrace())); // TODO(cwestin)
       }
 
       return childAllocator;
@@ -1102,7 +1112,9 @@ public abstract class BaseAllocator implements BufferAllocator {
 
     for(final UnsafeDirectLittleEndian udle : udleSet) {
       writer.write(udle.toString());
-      writer.write('\n');
+      writer.write("[identityHashCode == ");
+      writer.write(Integer.toString(System.identityHashCode(udle)));
+      writer.write("]\n");
     }
 
     logger.trace(writer.toString());
