@@ -225,6 +225,26 @@ public class BaseTestQuery extends ExecTest {
     return new TestBuilder(allocator);
   }
 
+  /**
+   * Utility function that can be used in tests to verify the state of drillbit
+   * allocators.
+   */
+  public static void verifyAllocators() {
+    if (bits != null) {
+      for(Drillbit bit : bits) {
+        if (bit != null) {
+          final DrillbitContext drillbitContext = bit.getContext();
+          final BufferAllocator bufferAllocator = drillbitContext.getAllocator();
+          if (!(bufferAllocator instanceof RootAllocator)) {
+            throw new IllegalStateException("The DrillbitContext's allocator is not a RootAllocator");
+          }
+          final RootAllocator rootAllocator = (RootAllocator) bufferAllocator;
+          rootAllocator.verify();
+        }
+      }
+    }
+  }
+
   @AfterClass
   public static void closeClient() throws IOException, InterruptedException {
     if (client != null) {
