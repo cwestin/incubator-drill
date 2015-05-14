@@ -457,7 +457,6 @@ public class ParquetRecordReader extends AbstractRecordReader {
       columnStatuses = null;
     }
 
-    columnStatuses.clear();
     codecFactory.close();
 
     if (varLengthReader != null) {
