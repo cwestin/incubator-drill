@@ -92,15 +92,14 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
 
             final ChannelPipeline pipe = ch.pipeline();
 
-            pipe.addLast("protocol-decoder", getDecoder(connection.getAllocator()));
-            pipe.addLast("message-decoder", new RpcDecoder("c-" + rpcConfig.getName()));
             pipe.addLast("protocol-encoder", new RpcEncoder("c-" + rpcConfig.getName()));
-            pipe.addLast("handshake-handler", new ClientHandshakeHandler());
-
-            if(pingHandler != null){
+            if(pingHandler != null) {
               pipe.addLast("idle-state-handler", pingHandler);
             }
 
+            pipe.addLast("protocol-decoder", getDecoder(connection.getAllocator()));
+            pipe.addLast("message-decoder", new RpcDecoder("c-" + rpcConfig.getName()));
+            pipe.addLast("handshake-handler", new ClientHandshakeHandler());
             pipe.addLast("message-handler", new InboundHandler(connection));
             pipe.addLast("exception-handler", new RpcExceptionHandler(connection));
           }
@@ -143,6 +142,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
       if (evt.state() == IdleState.WRITER_IDLE) {
         ctx.writeAndFlush(PING_MESSAGE).addListener(pingFailedHandler);
       }
+      super.channelIdle(ctx, evt);
     }
   }
 
