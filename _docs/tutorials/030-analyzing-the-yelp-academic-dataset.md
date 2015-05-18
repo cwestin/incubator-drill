@@ -5,9 +5,9 @@ parent: "Tutorials"
 Apache Drill is one of the fastest growing open source projects, with the community making rapid progress with monthly releases. The key difference is Drill’s agility and flexibility.
 Along with meeting the table stakes for SQL-on-Hadoop, which is to achieve low
 latency performance at scale, Drill allows users to analyze the data without
-any ETL or up-front schema definitions. The data could be in any file format
-such as text, JSON, or Parquet. Data could have simple types such as string,
-integer, dates, or more complex multi-structured data, such as nested maps and
+any ETL or up-front schema definitions. The data can be in any file format
+such as text, JSON, or Parquet. Data can have simple types such as strings,
+integers, or dates, or more complex multi-structured data, such as nested maps and
 arrays. Data can exist in any file system, local or distributed, such as HDFS,
 MapR FS, or S3. Drill, has a “no schema” approach, which enables you to get
 value from your data in just a few minutes.
@@ -21,38 +21,26 @@ example is downloadable from [Yelp](http://www.yelp.com/dataset_challenge)
 
 ## Installing and Starting Drill
 
-### Step 1: Download Apache Drill onto your local machine
+In order to experiment with Drill locally, follow the installation instructions
+in [Drill in 10 Minutes]({{ site.baseurl }}/docs/drill-in-10-minutes).
 
-[http://drill.apache.org/download/](http://drill.apache.org/download/)
-
-You can also [in Drill in distributed mode]({{ site.baseurl }}/docs/installing-drill-in-distributed-mode) if you
-want to scale your environment.
-
-### Step 2 : Open the Drill tar file
-
-    tar -xvf apache-drill-0.1.0.tar.gz
-
-### Step 3: Start the Drill shell.
-
-    bin/drill-embedded
-
-That’s it! You are now ready explore the data.
+Alternatively, you can [install Drill in distributed mode]({{ site.baseurl }}/docs/installing-drill-in-distributed-mode) if you want to scale your environment.
 
 Let’s try out some SQL examples to understand how Drill makes the raw data
 analysis extremely easy.
 
-{% include startnote.html %}You need to substitute your local path to the Yelp data set in the FROM clause of each query you run.{% include endnote.html %}
+{% include startnote.html %}You need to substitute your local path to the Yelp data set in the angle-bracketed portion of the FROM clause of each query you run.{% include endnote.html %}
 
 ----------
 
-## Querying Data with Drill   
-   
+## Querying Data with Drill
+
 ### 1\. View the contents of the Yelp business data
 
     0: jdbc:drill:zk=local> !set maxwidth 10000
 
     0: jdbc:drill:zk=local> select * from
-        dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json`
+        dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
         limit 1;
 
     +------------------------+----------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------+--------------------------------+---------+--------------+-------------------+-------------+-------+-------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+----------+---------------+
@@ -69,8 +57,8 @@ You can directly query self-describing files such as JSON, Parquet, and text. Th
 
 #### Total reviews in the data set
 
-    0: jdbc:drill:zk=local> select sum(review_count) as totalreviews 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json`;
+    0: jdbc:drill:zk=local> select sum(review_count) as totalreviews
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`;
 
     +--------------+
     | totalreviews |
@@ -80,8 +68,8 @@ You can directly query self-describing files such as JSON, Parquet, and text. Th
 
 #### Top states and cities in total number of reviews
 
-    0: jdbc:drill:zk=local> select state, city, count(*) totalreviews 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` 
+    0: jdbc:drill:zk=local> select state, city, count(*) totalreviews
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
     group by state, city order by count(*) desc limit 10;
 
     +------------+------------+--------------+
@@ -101,8 +89,8 @@ You can directly query self-describing files such as JSON, Parquet, and text. Th
 
 #### Average number of reviews per business star rating
 
-    0: jdbc:drill:zk=local> select stars,trunc(avg(review_count)) reviewsavg 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json`
+    0: jdbc:drill:zk=local> select stars,trunc(avg(review_count)) reviewsavg
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
     group by stars order by stars desc;
 
     +------------+------------+
@@ -121,9 +109,9 @@ You can directly query self-describing files such as JSON, Parquet, and text. Th
 
 #### Top businesses with high review counts (> 1000)
 
-    0: jdbc:drill:zk=local> select name, state, city, `review_count` from
-    dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json`
-    where review_count > 1000 order by `review_count` desc limit 10;
+    0: jdbc:drill:zk=local> select name, state, city, review_count from
+    dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
+    where review_count > 1000 order by review_count desc limit 10;
 
     +-------------------------------+-------------+------------+---------------+
     |           name                |   state     |    city    |  review_count |
@@ -143,10 +131,10 @@ You can directly query self-describing files such as JSON, Parquet, and text. Th
 #### Saturday open and close times for a few businesses
 
     0: jdbc:drill:zk=local> select b.name, b.hours.Saturday.`open`,
-    b.hours.Saturday.`close`  
+    b.hours.Saturday.`close`
     from
-    dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json`
-    b limit 10;
+    dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json` b
+    limit 10;
 
     +----------------------------+------------+------------+
     |    name                    |   EXPR$1   |   EXPR$2   |
@@ -184,7 +172,9 @@ the data).
 
 Then, query the attribute’s data.
 
-    0: jdbc:drill:zk=local> select attributes from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` limit 10;
+    0: jdbc:drill:zk=local> select attributes
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
+    limit 10;
 
     +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
     |                                                     attributes                                                                                                                    |
@@ -217,7 +207,9 @@ on data.
 
 #### Number of restaurants in the data set
 
-    0: jdbc:drill:zk=local> select count(*) as TotalRestaurants from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` where true=repeated_contains(categories,'Restaurants');
+    0: jdbc:drill:zk=local> select count(*) as TotalRestaurants
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
+    where true=repeated_contains(categories,'Restaurants');
     +------------------+
     | TotalRestaurants |
     +------------------+
@@ -226,7 +218,10 @@ on data.
 
 #### Top restaurants in number of reviews
 
-    0: jdbc:drill:zk=local> select name,state,city,`review_count` from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` where true=repeated_contains(categories,'Restaurants') order by `review_count` desc limit 10;
+    0: jdbc:drill:zk=local> select name, state, city, `review_count`
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
+    where true=repeated_contains(categories,'Restaurants')
+    order by `review_count` desc limit 10;
 
     +------------------------+-------+-----------+--------------+
     |          name          | state |    city   | review_count |
@@ -245,7 +240,10 @@ on data.
 
 #### Top restaurants in number of listed categories
 
-    0: jdbc:drill:zk=local> select name,repeated_count(categories) as categorycount, categories from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` where true=repeated_contains(categories,'Restaurants') order by repeated_count(categories) desc limit 10;
+    0: jdbc:drill:zk=local> select name,repeated_count(categories) as categorycount, categories
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
+    where true=repeated_contains(categories,'Restaurants')
+    order by repeated_count(categories) desc limit 10;
 
     +---------------------------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------+
     | name                            | categorycount | categories                                                                                                                                        |
@@ -266,9 +264,9 @@ on data.
 
 #### Top first categories in number of review counts
 
-    0: jdbc:drill:zk=local> select categories[0], count(categories[0]) as categorycount 
-    from dfs.`/users/nrentachintala/Downloads/yelp_academic_dataset_business.json` 
-    group by categories[0] 
+    0: jdbc:drill:zk=local> select categories[0], count(categories[0]) as categorycount
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`
+    group by categories[0]
     order by count(categories[0]) desc limit 10;
 
     +----------------------+---------------+
@@ -290,8 +288,9 @@ on data.
 
 #### Take a look at the contents of the Yelp reviews dataset.
 
-    0: jdbc:drill:zk=local> select * 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_review.json` limit 1;
+    0: jdbc:drill:zk=local> select *
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_review.json`
+    limit 1;
     +---------------------------------+------------------------+------------------------+-------+------------+----------------------------------------------------------------------+--------+------------------------+
     | votes                           | user_id                | review_id              | stars | date       | text                                                                 | type   | business_id            |
     +---------------------------------+------------------------+------------------------+-------+------------+----------------------------------------------------------------------+--------+------------------------+
@@ -301,15 +300,15 @@ on data.
 #### Top businesses with cool rated reviews
 
 Note that we are combining the Yelp business data set that has the overall
-review_count to the Yelp review data, which holds additional details on each
+review_count with the Yelp review data, which holds additional details on each
 of the reviews themselves.
 
-    0: jdbc:drill:zk=local> Select b.name 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` b 
-    where b.business_id in (SELECT r.business_id 
-    FROM dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_review.json` r
-    GROUP BY r.business_id having sum(r.votes.cool) > 2000 
-    order by sum(r.votes.cool)  desc);
+    0: jdbc:drill:zk=local> Select b.name
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json` b
+    where b.business_id in (SELECT r.business_id
+    FROM dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_review.json` r
+    GROUP BY r.business_id having sum(r.votes.cool) > 2000
+    order by sum(r.votes.cool) desc);
     +-------------------------------+
     |             name              |
     +-------------------------------+
@@ -323,14 +322,14 @@ of the reviews themselves.
 
 Note that Drill views are lightweight, and can just be created in the local
 file system. Drill in standalone mode comes with a dfs.tmp workspace, which we
-can use to create views (or you can can define your own workspaces on a local
+can use to create views (or you can define your own workspaces on a local
 or distributed file system). If you want to persist the data physically
-instead of in a logical view, you can use CREATE TABLE AS SELECT syntax.
+instead of querying it through a logical view, you can use CREATE TABLE AS SELECT syntax.
 
-    0: jdbc:drill:zk=local> create or replace view dfs.tmp.businessreviews as 
-    Select b.name,b.stars,b.state,b.city,r.votes.funny,r.votes.useful,r.votes.cool, r.`date` 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json` b, dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_review.json` r 
-    where r.business_id=b.business_id
+    0: jdbc:drill:zk=local> create or replace view dfs.tmp.businessreviews as
+    Select b.name, b.stars, b.state, b.city, r.votes.funny, r.votes.useful, r.votes.cool, r.`date`
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json` b, dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_review.json` r
+    where r.business_id = b.business_id
     +------------+-----------------------------------------------------------------+
     |     ok     |                           summary                               |
     +------------+-----------------------------------------------------------------+
@@ -346,7 +345,7 @@ Let’s get the total number of records from the view.
     | 1125458    |
     +------------+
 
-In addition to these queries, you can get many more deeper insights using
+In addition to these queries, you can get many more deep insights using
 Drill’s [SQL functionality]({{ site.baseurl }}/docs/sql-reference). If you are not comfortable with writing queries manually, you
 can use a BI/Analytics tools such as Tableau/MicroStrategy to query raw
 files/Hive/HBase data or Drill-created views directly using Drill [ODBC/JDBC
@@ -362,8 +361,8 @@ data so you can apply even deeper SQL functionality. Here is a sample query:
 
 #### Get a flattened list of categories for each business
 
-    0: jdbc:drill:zk=local> select name, flatten(categories) as category 
-    from dfs.`/users/nrentachintala/Downloads/yelp/yelp_academic_dataset_business.json`  limit 20;
+    0: jdbc:drill:zk=local> select name, flatten(categories) as category
+    from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json`  limit 20;
     +-----------------------------+---------------------------------+
     | name                        | category                        |
     +-----------------------------+---------------------------------+
@@ -391,9 +390,9 @@ data so you can apply even deeper SQL functionality. Here is a sample query:
 
 #### Top categories used in business reviews
 
-    0: jdbc:drill:zk=local> select celltbl.catl, count(celltbl.catl) categorycnt 
-    from (select flatten(categories) catl from dfs.`/yelp_academic_dataset_business.json` ) celltbl 
-    group by celltbl.catl 
+    0: jdbc:drill:zk=local> select celltbl.catl, count(celltbl.catl) categorycnt
+    from (select flatten(categories) catl from dfs.`<path-to-yelp-dataset>/yelp/yelp_academic_dataset_business.json` ) celltbl
+    group by celltbl.catl
     order by count(celltbl.catl) desc limit 10 ;
     +------------------+-------------+
     | catl             | categorycnt |
@@ -415,7 +414,6 @@ Stay tuned for more features and upcoming activities in the Drill community.
 To learn more about Drill, please refer to the following resources:
 
   * Download Drill here: <http://getdrill.org/drill/download>
-  * [10 reasons we think Drill is cool]({{site.baseurl}}/docs/why-drill)
-  * [A simple 10-minute tutorial]({{ site.baseurl }}/docs/drill-in-10-minutes>)
+  * [10 reasons we think Drill is cool]({{ site.baseurl }}/docs/why-drill)
+  * [A simple 10-minute tutorial]({{ site.baseurl }}/docs/drill-in-10-minutes)
   * [More tutorials]({{ site.baseurl }}/docs/tutorials-introduction/)
-
