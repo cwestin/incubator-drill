@@ -17,6 +17,8 @@
  */
 package org.apache.drill.exec.ops;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import io.netty.buffer.DrillBuf;
 
 import org.apache.drill.common.DrillAutoCloseables;
@@ -25,6 +27,7 @@ import org.apache.drill.exec.memory.OutOfMemoryException;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
 
 import com.carrotsearch.hppc.LongObjectOpenHashMap;
+
 import org.apache.drill.exec.testing.ExecutionControls;
 
 class OperatorContextImpl extends OperatorContext implements AutoCloseable {
@@ -37,6 +40,15 @@ class OperatorContextImpl extends OperatorContext implements AutoCloseable {
   private OperatorStats stats;
   private LongObjectOpenHashMap<DrillBuf> managedBuffers = new LongObjectOpenHashMap<>();
   private final boolean applyFragmentLimit;
+
+  // TODO(cwestin)
+  private final static AtomicInteger idGenerator = new AtomicInteger(0);
+  private final int id = idGenerator.incrementAndGet();
+
+  public int getId() {
+    return id;
+  }
+  // TODO(cwestin)
 
   public OperatorContextImpl(PhysicalOperator popConfig, FragmentContext context, boolean applyFragmentLimit) throws OutOfMemoryException {
     this.applyFragmentLimit=applyFragmentLimit;
@@ -99,7 +111,8 @@ class OperatorContextImpl extends OperatorContext implements AutoCloseable {
       logger.debug("Attempted to close Operator context for {}, but context is already closed", popConfig != null ? popConfig.getClass().getName() : null);
       return;
     }
-    logger.debug("Closing context for {}", popConfig != null ? popConfig.getClass().getName() : null);
+    logger.debug("Closing context for {}, allocator[{}]", popConfig != null ? popConfig.getClass().getName() : null,
+        allocator.getId());
 
     // release managed buffers.
     Object[] buffers = ((LongObjectOpenHashMap<Object>)(Object)managedBuffers).values;

@@ -19,6 +19,7 @@ package org.apache.drill.exec.physical.impl.xsort;
 
 import java.util.List;
 
+import org.apache.drill.common.AutoCloseables;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.config.ExternalSort;
@@ -34,7 +35,19 @@ public class ExternalSortBatchCreator implements BatchCreator<ExternalSort>{
   public ExternalSortBatch getBatch(FragmentContext context, ExternalSort config, List<RecordBatch> children)
       throws ExecutionSetupException {
     Preconditions.checkArgument(children.size() == 1);
-    return new ExternalSortBatch(config, context, children.iterator().next());
+    final RecordBatch recordBatch = children.iterator().next();
+    try {
+      return new ExternalSortBatch(config, context, recordBatch);
+    } catch(Exception e) {
+      /*
+       * We caught an exception during the construction of the ExternalSortBatch.
+       * As a result, it won't be hooked into the operator tree, and won't get
+       * cleaned up. We have to manually clean up the recordBatch that is being
+       * passed in. After that, we continue with the thrown exception.
+       */
+      AutoCloseables.close(recordBatch, logger);
+      throw e;
+    }
   }
 
 

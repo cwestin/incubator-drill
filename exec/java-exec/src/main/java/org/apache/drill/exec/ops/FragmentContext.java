@@ -28,6 +28,7 @@ import org.apache.calcite.schema.SchemaPlus;
 import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.exceptions.UserException;
+import org.apache.drill.common.StackTrace;
 import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.exception.ClassTransformationException;
 import org.apache.drill.exec.expr.ClassGenerator;
@@ -170,7 +171,8 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
       allocator = context.getAllocator().newChildAllocator(
           allocatorOwner, fragment.getMemInitial(), fragment.getMemMax(), BufferAllocator.F_LIMITING_ROOT);
       Preconditions.checkNotNull(allocator, "Unable to acquire allocator");
-      logger.debug(String.format("FragmentContext.allocator[%d] created", allocator.getId())); // TODO(cwestin)
+      logger.debug(String.format("FragmentContext.allocator[%d] created at\n%s",
+          allocator.getId(), new StackTrace())); // TODO(cwestin)
     } catch(final OutOfMemoryRuntimeException e) {
       throw UserException.memoryError(e)
         .addContext("Fragment", getHandle().getMajorFragmentId() + ":" + getHandle().getMinorFragmentId())
@@ -299,7 +301,11 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
   public BufferAllocator getNewChildAllocator(final long initialReservation,
                                               final long maximumReservation,
                                               final boolean applyFragmentLimit) {
-    return allocator.getChildAllocator(this, initialReservation, maximumReservation, applyFragmentLimit);
+    final BufferAllocator newAllocator =
+        allocator.getChildAllocator(this, initialReservation, maximumReservation, applyFragmentLimit);
+    logger.debug(String.format("FragmentContext.allocator[%d] new child allocator[%d] at\n%s",
+        allocator.getId(), newAllocator.getId(), new StackTrace())); // TODO(cwestin)
+    return newAllocator;
   }
 
   public BufferAllocator newChildAllocator(final AllocatorOwner allocatorOwner, final long initialReservation,
@@ -310,8 +316,12 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
       throw new IllegalArgumentException("applyFragmentLimit is false");
     }
 */
-    return allocator.newChildAllocator(new ChainedAllocatorOwner(allocatorOwner, this.allocatorOwner),
+    final BufferAllocator newAllocator =
+        allocator.newChildAllocator(new ChainedAllocatorOwner(allocatorOwner, this.allocatorOwner),
         initialReservation, maximumReservation, 0);
+    logger.debug(String.format("FragmentContext.allocator[%d] new child allocator[%d] at\n%s",
+        allocator.getId(), newAllocator.getId(), new StackTrace())); // TODO(cwestin)
+    return newAllocator;
   }
 
   public <T> T getImplementationClass(final ClassGenerator<T> cg)
@@ -358,6 +368,8 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
       throws OutOfMemoryException {
     OperatorContextImpl context = new OperatorContextImpl(popConfig, this, stats, applyFragmentLimit);
     contexts.add(context);
+    logger.debug(String.format("FragmentContext.allocator[%d] OperatorContext[%d] created at\n%s",
+        allocator.getId(), context.getId(), new StackTrace())); // TODO(cwestin)
     return context;
   }
 
@@ -365,6 +377,8 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
       throws OutOfMemoryException {
     OperatorContextImpl context = new OperatorContextImpl(popConfig, this, applyFragmentLimit);
     contexts.add(context);
+    logger.debug(String.format("FragmentContext.allocator[%d] OperatorContext[%d] created at\n%s",
+        allocator.getId(), context.getId(), new StackTrace())); // TODO(cwestin)
     return context;
   }
 
@@ -418,6 +432,7 @@ public class FragmentContext implements AutoCloseable, UdfUtilities {
     // close operator context
     for (OperatorContextImpl opContext : contexts) {
       suppressingClose(opContext);
+      logger.debug(String.format("OperatorContext[%d] closed", opContext.getId()));
     }
 
     suppressingClose(bufferManager);

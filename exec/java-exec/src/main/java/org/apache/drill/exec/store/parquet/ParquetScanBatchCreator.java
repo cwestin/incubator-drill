@@ -25,6 +25,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.drill.common.DrillAutoCloseables;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.ExecConstants;
@@ -74,6 +75,8 @@ public class ParquetScanBatchCreator implements BatchCreator<ParquetRowGroupScan
 
     List<String[]> partitionColumns = Lists.newArrayList();
     List<Integer> selectedPartitionColumns = Lists.newArrayList();
+    ScanBatch s;
+    try { // TODO(cwestin)
     boolean selectAllColumns = AbstractRecordReader.isStarQuery(columns);
 
     List<SchemaPath> newColumns = columns;
@@ -162,8 +165,15 @@ public class ParquetScanBatchCreator implements BatchCreator<ParquetRowGroupScan
       }
     }
 
-    ScanBatch s =
-        new ScanBatch(rowGroupScan, context, oContext, readers.iterator(), partitionColumns, selectedPartitionColumns);
+    s = new ScanBatch(rowGroupScan, context, oContext, readers.iterator(), partitionColumns, selectedPartitionColumns);
+    oContext = null;
+    } finally { // TODO(cwestin)
+      if (oContext != null) {
+        logger.debug("closing unadopted oContext");
+        final AutoCloseable autoCloseable = (AutoCloseable) oContext;
+        DrillAutoCloseables.closeNoChecked(autoCloseable);
+      }
+    }
 
 
     return s;
