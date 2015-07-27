@@ -152,7 +152,7 @@ public class TestAllocators {
     // Fragment 3 asks for more and fails
     boolean outOfMem = false;
     try {
-      oContext31.getAllocator().buffer(4400000);
+      oContext31.getAllocator().buffer(44000000);
       fail("Fragment 3 should fail to allocate buffer");
     } catch (OutOfMemoryRuntimeException e) {
       outOfMem = true; // Expected.

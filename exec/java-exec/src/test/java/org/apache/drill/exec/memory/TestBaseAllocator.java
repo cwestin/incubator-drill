@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import io.netty.buffer.DrillBuf;
 
 import org.apache.drill.exec.server.options.OptionManager;
@@ -303,8 +304,12 @@ public class TestBaseAllocator {
           rootAllocator.newChildAllocator(allocatorOwner, 0, MAX_ALLOCATION, 0)) {
         allocateAndFree(childAllocator);
 
-        final DrillBuf drillBuf3 = childAllocator.buffer(MAX_ALLOCATION + 1);
-        assertNull("allocated memory beyond max allowed", drillBuf3);
+        try {
+          childAllocator.buffer(MAX_ALLOCATION + 1);
+          fail("allocated memory beyond max allowed");
+        } catch(OutOfMemoryRuntimeException e) {
+          // expected
+        }
       }
     }
   }
@@ -321,8 +326,12 @@ public class TestBaseAllocator {
         final DrillBuf drillBuf2 = childAllocator.buffer(MAX_ALLOCATION / 2);
         assertNotNull("allocation failed", drillBuf2);
 
-        final DrillBuf drillBuf3 = childAllocator.buffer(MAX_ALLOCATION / 4);
-        assertNull("allocated memory beyond max allowed", drillBuf3);
+        try {
+          childAllocator.buffer(MAX_ALLOCATION / 4);
+          fail("allocated memory beyond max allowed");
+        } catch(OutOfMemoryRuntimeException e) {
+          // expected
+        }
 
         drillBuf1.release();
         drillBuf2.release();

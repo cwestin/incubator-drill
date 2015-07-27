@@ -21,7 +21,6 @@ import org.apache.drill.common.exceptions.UserException;
 import org.apache.drill.exec.memory.BaseAllocator;
 import org.apache.drill.exec.memory.OutOfMemoryRuntimeException;
 import org.apache.drill.exec.memory.RootAllocator;
-import org.apache.drill.exec.proto.CoordinationProtos;
 import org.apache.drill.exec.proto.UserBitShared.DrillPBError;
 import org.apache.drill.exec.testing.Controls;
 import org.apache.drill.exec.testing.ControlsInjectionUtil;
@@ -43,7 +42,7 @@ public class TestAllocationException extends BaseTestQuery {
     test(SINGLE_MODE);
 
     final String controls = Controls.newBuilder()
-      .addException(RootAllocator.class,
+      .addException(BaseAllocator.class,
         RootAllocator.CHILD_BUFFER_INJECTION_SITE,
         OutOfMemoryRuntimeException.class,
         200,

@@ -945,37 +945,39 @@ public abstract class BaseAllocator implements BufferAllocator {
             String.format("Attempt to use closed allocator[%d]", baseAllocator.id));
       }
 
-      /*
-       * This buffer is already shared, but we want to add more sharers.
-       *
-       * Create the new wrapper.
-       */
-      final DrillBuf newBuf = new DrillBuf(this, otherAllocator, drillBuf, index, length, drillBufFlags);
-      if (DEBUG) {
-        final UnsafeDirectLittleEndian udle = (UnsafeDirectLittleEndian) drillBuf.unwrap();
-        baseAllocator.historicalLog.recordEvent("SharedBufferLedger.shareWith(..., otherAllocator[%d], "
-                + "drillBuf[%d]{UnsafeDirectLittleEndian[identityHashCode == %d]}, ...)",
-            baseAllocator.id, drillBuf.getId(), System.identityHashCode(udle));
+      synchronized(ALLOCATOR_LOCK) {
+        /*
+         * This buffer is already shared, but we want to add more sharers.
+         *
+         * Create the new wrapper.
+         */
+        final DrillBuf newBuf = new DrillBuf(this, otherAllocator, drillBuf, index, length, drillBufFlags);
+        if (DEBUG) {
+          final UnsafeDirectLittleEndian udle = (UnsafeDirectLittleEndian) drillBuf.unwrap();
+          baseAllocator.historicalLog.recordEvent("SharedBufferLedger.shareWith(..., otherAllocator[%d], "
+              + "drillBuf[%d]{UnsafeDirectLittleEndian[identityHashCode == %d]}, ...)",
+              baseAllocator.id, drillBuf.getId(), System.identityHashCode(udle));
 
-        // Make sure the current ownership is still correct.
-        final Object object = owningAllocator.allocatedBuffers.get(udle);
-        if (object == null) {
-          newBuf.release();
-          historicalLog.logHistory(logger);
-          owningAllocator.historicalLog.logHistory(logger);
-          drillBuf.logHistory(logger);
-          throw new IllegalStateException("Buffer not found in owning allocator");
+          // Make sure the current ownership is still correct.
+          final Object object = owningAllocator.allocatedBuffers.get(udle); // This may not be protectable w/o ALLOCATOR_LOCK.
+          if (object == null) {
+            newBuf.release();
+            historicalLog.logHistory(logger);
+            owningAllocator.historicalLog.logHistory(logger);
+            drillBuf.logHistory(logger);
+            throw new IllegalStateException("Buffer not found in owning allocator");
+          }
         }
+
+        addMapping(newBuf, baseAllocator);
+        pDrillBuf.value = newBuf;
+
+        if (DEBUG) {
+          checkBufferMap();
+        }
+
+        return this;
       }
-
-      addMapping(newBuf, baseAllocator);
-      pDrillBuf.value = newBuf;
-
-      if (DEBUG) {
-        checkBufferMap();
-      }
-
-      return this;
     }
 
     @Override
@@ -993,6 +995,7 @@ public abstract class BaseAllocator implements BufferAllocator {
             "Attempt to use closed allocator[%d]", newAllocator.id));
       }
 
+      // This doesn't need the ALLOCATOR_LOCK, because it will already be held.
       synchronized(this) {
         try {
           // Modify the buffer mapping to reflect the virtual transfer.
@@ -1047,7 +1050,9 @@ public abstract class BaseAllocator implements BufferAllocator {
     Preconditions.checkArgument(minSize <= maxSize,
         "the minimum requested size must be <= the maximum requested size");
 
-    injector.injectUnchecked(allocatorOwner.getExecutionControls(), CHILD_BUFFER_INJECTION_SITE);
+    if (DEBUG) {
+      injector.injectUnchecked(allocatorOwner.getExecutionControls(), CHILD_BUFFER_INJECTION_SITE);
+    }
 
     // we can always return an empty buffer
     if (minSize == 0) {
