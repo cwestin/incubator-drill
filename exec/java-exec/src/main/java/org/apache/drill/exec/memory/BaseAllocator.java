@@ -1275,7 +1275,8 @@ public class BaseAllocator implements BufferAllocator {
         wrapped.value.release(1);
         wrapped.value = null;
       }
-      return null;
+
+      throw new OutOfMemoryRuntimeException(createErrorMsg(this, minSize));
     }
 
     final long reserved = nv.allocated - allocatedWas;
@@ -1730,25 +1731,10 @@ public class BaseAllocator implements BufferAllocator {
     }
 
     @Override
-    public void close() {
-      if (!isClosed()) {
-        final Object object;
-        synchronized(DEBUG_LOCK) {
-          object = reservations.remove(this);
-        }
-        if (object == null) {
-          final StringBuilder sb = new StringBuilder();
-          writeHistoryToBuilder(sb);
-
-          logger.debug(sb.toString());
-          throw new IllegalStateException(
-              String.format("Didn't find closing reservation[%d]", id));
-        }
-
-        historicalLog.recordEvent("closed");
+    public boolean add(final int nBytes) {
+      synchronized(DEBUG_LOCK) {
+        return super.add(nBytes);
       }
-
-      super.close();
     }
 
     @Override
@@ -1761,11 +1747,18 @@ public class BaseAllocator implements BufferAllocator {
             preallocSpace += nBytes;
           }
         }
+
+        historicalLog.recordEvent("reserve(%d) => %s", nBytes, Boolean.toString(reserved));
       }
 
-      historicalLog.recordEvent("reserve(%d) => %s", nBytes, Boolean.toString(reserved));
-
       return reserved;
+    }
+
+    @Override
+    public DrillBuf buffer() {
+      synchronized(DEBUG_LOCK) {
+        return super.buffer();
+      }
     }
 
     @Override
@@ -1776,13 +1769,34 @@ public class BaseAllocator implements BufferAllocator {
     }
 
     @Override
+    public void close() {
+      synchronized(DEBUG_LOCK) {
+        if (!isClosed()) {
+          final Object object = reservations.remove(this);
+
+          if (object == null) {
+            final StringBuilder sb = new StringBuilder();
+            writeHistoryToBuilder(sb);
+
+            logger.debug(sb.toString());
+            throw new IllegalStateException(
+                String.format("Didn't find closing reservation[%d]", id));
+          }
+
+          super.close();
+          historicalLog.recordEvent("closed");
+        }
+      }
+    }
+
+    @Override
     protected void releaseReservation(final int nBytes) {
       synchronized(DEBUG_LOCK) {
         super.releaseReservation(nBytes);
         preallocSpace -= nBytes;
-      }
 
-      historicalLog.recordEvent("releaseReservation(%d)", nBytes);
+        historicalLog.recordEvent("releaseReservation(%d)", nBytes);
+      }
     }
 
     private String getState() {
@@ -1918,6 +1932,7 @@ public class BaseAllocator implements BufferAllocator {
           reservedTotal += reservation.getSize();
         }
       }
+
       if (reservedTotal != preallocSpace) {
         logReservations(ReservationsLog.UNUSED);
 
