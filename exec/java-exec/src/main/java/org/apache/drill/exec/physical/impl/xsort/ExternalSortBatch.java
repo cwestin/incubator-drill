@@ -532,7 +532,6 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
         if (buf.isRootBuffer()) {
           allocator.takeOwnership(buf);
         }
-        buf.release();
       }
     }
   }
