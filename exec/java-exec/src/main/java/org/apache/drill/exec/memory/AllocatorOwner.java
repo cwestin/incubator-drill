@@ -15,17 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.drill.exec.record;
-
-import java.io.IOException;
+package org.apache.drill.exec.memory;
 
 import org.apache.drill.exec.ops.FragmentContext;
+import org.apache.drill.exec.testing.ExecutionControls;
 
-public interface RawFragmentBatchProvider extends AutoCloseable {
+/**
+ * This interface provides a means for allocator owners to inject services
+ * required by allocators, as well as to identify themselves for debugging purposes.
+ * Identification is done by overriding the implementation of
+ * {#link {@link Object#toString()}.
+ */
+public interface AllocatorOwner {
+  /**
+   * Get the current ExecutionControls from the allocator's owner.
+   *
+   * @return the current execution controls; may return null if this isn't
+   *   possible
+   */
+  ExecutionControls getExecutionControls();
 
-  public RawFragmentBatch getNext() throws IOException, InterruptedException;
-  public void kill(FragmentContext context);
-
-  @Override
-  public void close(); // Suppress the "throws Exception".
+  @Deprecated // Only for TopLevelAllocator and its friends.
+  FragmentContext getFragmentContext();
 }

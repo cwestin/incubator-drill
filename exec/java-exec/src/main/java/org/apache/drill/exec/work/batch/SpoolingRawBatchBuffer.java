@@ -28,6 +28,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.drill.common.DrillAutoCloseables;
 import org.apache.drill.exec.ExecConstants;
 import org.apache.drill.exec.memory.BufferAllocator;
 import org.apache.drill.exec.memory.OutOfMemoryException;
@@ -82,9 +83,13 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private Path path;
   private FSDataOutputStream outputStream;
 
-  public SpoolingRawBatchBuffer(FragmentContext context, int fragmentCount, int oppositeId, int bufferIndex) throws IOException, OutOfMemoryException {
+  public SpoolingRawBatchBuffer(FragmentContext context, int fragmentCount, int oppositeId, int bufferIndex) {
     super(context, fragmentCount);
-    this.allocator = context.getNewChildAllocator(ALLOCATOR_INITIAL_RESERVATION, ALLOCATOR_MAX_RESERVATION, true);
+    try {
+      this.allocator = context.getNewChildAllocator(ALLOCATOR_INITIAL_RESERVATION, ALLOCATOR_MAX_RESERVATION, true);
+    } catch(OutOfMemoryException e) {
+      throw new RuntimeException(e);
+    }
     this.threshold = context.getConfig().getLong(ExecConstants.SPOOLING_BUFFER_MEMORY);
     this.oppositeId = oppositeId;
     this.bufferIndex = bufferIndex;
@@ -135,13 +140,14 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       return buffer.size() == 0;
     }
 
+    @Override
     public void add(RawFragmentBatchWrapper batchWrapper) {
       buffer.add(batchWrapper);
     }
   }
 
   private synchronized void setSpoolingState(SpoolingState newState) {
-    SpoolingState currentState = spoolingState;
+    final SpoolingState currentState = spoolingState;
     if (newState == SpoolingState.NOT_SPOOLING ||
         currentState == SpoolingState.STOP_SPOOLING) {
       return;
@@ -216,7 +222,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
 
   @Override
   public void kill(FragmentContext context) {
-    allocator.close();
+    DrillAutoCloseables.closeNoChecked(allocator);
     if (spooler != null) {
       spooler.terminate();
     }
@@ -224,12 +230,12 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
 
   @Override
   protected void upkeep(RawFragmentBatch batch) {
-    FragmentRecordBatch header = batch.getHeader();
+    final FragmentRecordBatch header = batch.getHeader();
     if (header.getIsOutOfMemory()) {
       outOfMemory.set(true);
       return;
     }
-    DrillBuf body = batch.getBody();
+    final DrillBuf body = batch.getBody();
     if (body != null) {
       currentSizeInMemory -= body.capacity();
     }
@@ -253,7 +259,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         }
       }
     }
-    allocator.close();
+    DrillAutoCloseables.closeNoChecked(allocator);
     try {
       if (outputStream != null) {
         outputStream.close();
@@ -286,6 +292,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       spoolingQueue = Queues.newLinkedBlockingDeque();
     }
 
+    @Override
     public void run() {
       try {
         while (shouldContinue) {
