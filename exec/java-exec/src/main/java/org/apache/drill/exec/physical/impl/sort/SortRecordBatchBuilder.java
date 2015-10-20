@@ -48,7 +48,7 @@ public class SortRecordBatchBuilder implements AutoCloseable {
 
   private int recordCount;
   private long runningBatches; // TODO this is never used for anything real; never modified, conditions false
-  private final AutoCloseablePointer<SelectionVector4> pSV4 = new AutoCloseablePointer<>();
+  private SelectionVector4 sv4;
   private final PreAllocator preAllocator;
   private boolean preAllocatorUsed = false;
 
@@ -162,10 +162,9 @@ public class SortRecordBatchBuilder implements AutoCloseable {
     if (svBuffer == null) {
       throw new OutOfMemoryError("Failed to allocate direct memory for SV4 vector in SortRecordBatchBuilder.");
     }
-    pSV4.assignNoChecked(new SelectionVector4(svBuffer, recordCount, Character.MAX_VALUE));
+    sv4 = new SelectionVector4(svBuffer, recordCount, Character.MAX_VALUE);
     final BatchSchema schema = batches.keySet().iterator().next();
     final List<RecordBatchData> data = batches.get(schema);
-    final SelectionVector4 sv4 = pSV4.get();
 
     // now we're going to generate the sv4 pointers
     switch (schema.getSelectionVectorMode()) {
@@ -214,31 +213,29 @@ public class SortRecordBatchBuilder implements AutoCloseable {
   }
 
   public SelectionVector4 getSv4() {
-    return pSV4.get();
+    return sv4;
   }
 
   public void clear() {
-    // TODO DrillAutoCloseables.closeNoChecked(allocationReservation);
-    // Don't leak unused pre-allocated memory.
+    for (final RecordBatchData d : batches.values()) {
+      d.container.clear();
+    }
+
+    if (sv4 != null) {
+      sv4.clear();
+    }
+  }
+
+  @Override
+  public void close() throws Exception {
+    // TODO allocationReservation.close();
+    // TODO need the above, because the below can still leak if the allocation throws OOM
     if (!preAllocatorUsed) {
       final DrillBuf drillBuf = preAllocator.getAllocation();
       if (drillBuf != null) {
         drillBuf.release();
       }
     }
-
-    for (final RecordBatchData d : batches.values()) {
-      d.container.clear();
-    }
-    batches.clear();
-    pSV4.assignNoChecked(null);
-  }
-
-  @Override
-  public void close() throws Exception {
-    clear();
-    // TODO allocationReservation.close();
-    pSV4.close();
   }
 
   public List<VectorContainer> getHeldRecordBatches() {

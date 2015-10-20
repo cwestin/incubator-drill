@@ -112,7 +112,7 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
   private LinkedList<BatchGroup> batchGroups = Lists.newLinkedList();
   private LinkedList<BatchGroup> spilledBatchGroups = Lists.newLinkedList();
   private final AutoCloseablePointer<SortRecordBatchBuilder> pBuilder = new AutoCloseablePointer<>();
-  private final AutoCloseablePointer<SelectionVector4> pSV4 = new AutoCloseablePointer<>();
+  private SelectionVector4 sv4;
   private FileSystem fs;
   private int spillCount = 0;
   private int batchesSinceLastSpill = 0;
@@ -157,7 +157,6 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
 
   @Override
   public int getRecordCount() {
-    final SelectionVector4 sv4 = pSV4.get();
     if (sv4 != null) {
       return sv4.getCount();
     }
@@ -166,10 +165,10 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
 
   @Override
   public SelectionVector4 getSelectionVector4() {
-    return pSV4.get();
+    return sv4;
   }
 
-  private void cleanupBatchGroups(final DeferredException deferredException,
+  private static void closeBatchGroups(final DeferredException deferredException,
                                   final Collection<BatchGroup> groups) {
     for(final BatchGroup group : groups) {
       deferredException.suppressingClose(group);
@@ -188,15 +187,17 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
     deferredException.suppressingClose(copier);
     deferredException.suppressingClose(copierAllocator);
     deferredException.suppressingClose(pBuilder);
-    deferredException.suppressingClose(pSV4);
+    if (sv4 != null) {
+      sv4.clear();
+    }
 
     if (batchGroups != null) {
-      cleanupBatchGroups(deferredException, batchGroups);
+      closeBatchGroups(deferredException, batchGroups);
       batchGroups = null;
     }
 
     if (spilledBatchGroups != null) {
-      cleanupBatchGroups(deferredException, spilledBatchGroups);
+      closeBatchGroups(deferredException, spilledBatchGroups);
       spilledBatchGroups = null;
     }
 
@@ -414,7 +415,7 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
         }
 
         builder.build(context, container);
-        pSV4.assignNoChecked(builder.getSv4());
+        sv4 = builder.getSv4();
         mSorter = createNewMSorter();
         mSorter.setup(context, oContext.getAllocator(), getSelectionVector4(), this.container);
 
@@ -429,7 +430,7 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
 
         // For testing memory-leak purpose, inject exception after mSorter finishes sorting
         injector.injectUnchecked(context.getExecutionControls(), INTERRUPTION_AFTER_SORT);
-        pSV4.assignNoChecked(mSorter.getSV4());
+        sv4 = mSorter.getSV4();
 
         container.buildSchema(SelectionVectorMode.FOUR_BYTE);
       } else { // some batches were spilled
