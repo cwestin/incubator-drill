@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.drill.common.AutoCloseables;
-import org.apache.drill.common.AutoCloseablePointer;
 import org.apache.drill.common.DeferredException;
 import org.apache.drill.common.DrillAutoCloseables;
 import org.apache.drill.common.config.DrillConfig;
@@ -102,6 +101,7 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
 
   private BatchSchema schema;
   private SingleBatchSorter sorter;
+  private SortRecordBatchBuilder builder;
   private MSorter mSorter;
   /**
    * A single PriorityQueueCopier instance is used for 2 purposes:
@@ -111,7 +111,6 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
   private PriorityQueueCopier copier;
   private LinkedList<BatchGroup> batchGroups = Lists.newLinkedList();
   private LinkedList<BatchGroup> spilledBatchGroups = Lists.newLinkedList();
-  private final AutoCloseablePointer<SortRecordBatchBuilder> pBuilder = new AutoCloseablePointer<>();
   private SelectionVector4 sv4;
   private FileSystem fs;
   private int spillCount = 0;
@@ -184,13 +183,6 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
       }
     });
 
-    deferredException.suppressingClose(copier);
-    deferredException.suppressingClose(copierAllocator);
-    deferredException.suppressingClose(pBuilder);
-    if (sv4 != null) {
-      sv4.clear();
-    }
-
     if (batchGroups != null) {
       closeBatchGroups(deferredException, batchGroups);
       batchGroups = null;
@@ -200,6 +192,18 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
       closeBatchGroups(deferredException, spilledBatchGroups);
       spilledBatchGroups = null;
     }
+
+    if (builder != null) {
+      builder.clear();
+      deferredException.suppressingClose(builder);
+      builder = null;
+    }
+    if (sv4 != null) {
+      sv4.clear();
+    }
+
+    deferredException.suppressingClose(copier);
+    deferredException.suppressingClose(copierAllocator);
 
     if (mSorter != null) {
       deferredException.suppressingClose(new AutoCloseable() {
@@ -406,9 +410,13 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
       }
 
       if (spillCount == 0) {
-        pBuilder.assignNoChecked(new SortRecordBatchBuilder(oContext.getAllocator()));
-        final SortRecordBatchBuilder builder = pBuilder.get();
-        for (BatchGroup group : batchGroups) {
+        if (builder != null) {
+          builder.clear();
+          DrillAutoCloseables.closeNoChecked(builder);
+        }
+        builder = new SortRecordBatchBuilder(oContext.getAllocator());
+
+        for (final BatchGroup group : batchGroups) {
           final RecordBatchData rbd = new RecordBatchData(group.getContainer());
           rbd.setSv2(group.getSv2());
           builder.add(rbd);
@@ -481,9 +489,9 @@ public class ExternalSortBatch extends AbstractRecordBatch<ExternalSort> {
   }
 
   private boolean hasMemoryForInMemorySort(int currentRecordCount) {
-    long currentlyAvailable =  popConfig.getMaxAllocation() - oContext.getAllocator().getAllocatedMemory();
+    final long currentlyAvailable =  popConfig.getMaxAllocation() - oContext.getAllocator().getAllocatedMemory();
 
-    long neededForInMemorySort = SortRecordBatchBuilder.memoryNeeded(currentRecordCount) +
+    final long neededForInMemorySort = SortRecordBatchBuilder.memoryNeeded(currentRecordCount) +
         MSortTemplate.memoryNeeded(currentRecordCount);
 
     return currentlyAvailable > neededForInMemorySort;

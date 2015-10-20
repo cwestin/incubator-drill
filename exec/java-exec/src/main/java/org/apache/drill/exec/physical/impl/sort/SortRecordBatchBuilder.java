@@ -22,7 +22,6 @@ import java.util.List;
 
 import io.netty.buffer.DrillBuf;
 
-import org.apache.drill.common.AutoCloseablePointer;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.exec.exception.SchemaChangeException;
 import org.apache.drill.exec.memory.BufferAllocator;
